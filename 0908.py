@@ -66,3 +66,5 @@ def make_bar_plot(qc_df, target_cols: list, hue_col : str = 'SCAN') -> None:
 file_dir = Path(".")
 qc_df = read_file(file_dir)
 make_bar_plot(qc_df, ['FASTQ_Q30_R1', 'FASTQ_Q30_R2', 'FASTQ_TOTAL_BASES(Gb)'])
+
+#git
