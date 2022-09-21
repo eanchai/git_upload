@@ -1,7 +1,7 @@
 """
     date: 2022.09.14 ~
     object: BAM metric upload
-        scheck BAM file & sql database upload
+        check BAM file & sql database upload
     author: 
 """
 
@@ -63,8 +63,8 @@ class BamUpload:
         metric_line = lines[7].replace("\n", '')
         file_series = pd.Series(data=metric_line.split("\t"), index=header_line.split("\t"))
         file_series['Sample_ID'] = self.sample_id
-        file_DataFrame = pd.DataFrame(file_series).T
-        return file_DataFrame
+        file_dataframe = pd.DataFrame(file_series).T
+        return file_dataframe
         
     def write_to_sql(self, data_df: pd.DataFrame):
         db_type='mariadb'
@@ -108,5 +108,6 @@ if __name__ == '__main__':
     runner = BamUpload(args.data_dir, args.sample_id)
     runner()
     
-    
-    
+file_list = Path("/home/ubuntu/NGS_data/bam")
+file=list(file_list.glob("*/*.recal.bam.metrics.txt"))
+
