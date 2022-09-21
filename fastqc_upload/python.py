@@ -32,9 +32,9 @@ def coverage(metric_path: Path) -> pd.Series:
     coverage = float(coverage_line.split(" ")[1])
     
 #위의 def 안썼음,,,어어,,
-with open("CD_22_14544_BD_D_SRW_1.recal.bam.metrics.txt") as f:
-    files=f.readlines()
-coverage=float(files[1].split(" --")[6].split(" ")[1])
+#with open("CD_22_14544_BD_D_SRW_1.recal.bam.metrics.txt") as f:
+#    files=f.readlines()
+#coverage=float(files[1].split(" --")[6].split(" ")[1])
 
 
 #define_function 
