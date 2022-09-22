@@ -68,9 +68,9 @@ class BamUpload:
         
     def write_to_sql(self, data_df: pd.DataFrame):
         db_type='mariadb'
-        id='admin'
-        pw='Geninus1!'
-        host='db-practice.cg10utv5zpvf.ap-northeast-2.rds.amazonaws.com'
+        id='root'
+        pw='gw12341234'
+        host='db-qc.cg10utv5zpvf.ap-northeast-2.rds.amazonaws.com'
         schema_name='bam_practice'
         url =f"{db_type}+pymysql://{id}:{pw}@{host}/{schema_name}"
         engine = db.create_engine(url)
