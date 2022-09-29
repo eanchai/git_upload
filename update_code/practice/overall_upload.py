@@ -26,7 +26,7 @@ class DBConfig:
         self.host = 'geninus-maria-211117.cobyqiuirug6.ap-northeast-2.rds.amazonaws.com'
         self.schema_name = 'gh2'
         
-class OverallUpdate:
+class OverallUpdate(DBConfig):
     def __init__(self, data_dir: str, sample_id: str):
         '''
         class initaialize
@@ -39,7 +39,7 @@ class OverallUpdate:
         self.log_dir = self.data_dir.joinpath("log")
         self.log_dir.mkdir(parents=True, exist_ok=True)
         self.logger = self._make_logger(self.log_dir, 'OverallUploadTest')
-        self.qc_df = self.data_dir.joinpath(f"{common}{sample_id}{self.file_ex}")
+        self.qc_df = self.data_dir.joinpath(f"{common}{self.sample_id}{self.file_ex}")
         
     @staticmethod
     def _make_logger(log_dir: Path, name=None, consoleset=True, streamset=True) -> logging:
@@ -83,14 +83,16 @@ class OverallUpdate:
     #call에서 query 날려서 common merge & filter
     def filter_merged_qc_df(self, qc_df: pd.DataFrame, tb_expr_seq_line_df: pd.DataFrame) -> pd.DataFrame:
         qc_df['SampleID'] = [f"'{x}'" for x in qc_df['SampleID']] 
-        #qc_df['SampleID'] = [x.replace("'","") for x in qc_df['SampleID']]
+        qc_df['SampleID'] = [x.replace("'","") for x in qc_df['SampleID']]
         qc_merged = pd.merge(qc_df, tb_expr_seq_line_df, how='left', on='SampleID')
-        qc_merged = qc_merged.rename(columns={'SampleID':'SAMPLE_ID'})
-        qc_merged['FILTER'] = ['PASS' if row['FASTQ_TOTAL_BASES(Gb)'] > row['data_output'] else 'FAIL' for _, row in qc_merged.iterrows()]
-        return qc_merged
+        
+        qc_merged_df = qc_merged.rename(columns={'SampleID':'SAMPLE_ID'})
+        qc_merged_df['FASTQ_OVERALL'] = ['PASS' if row['FASTQ_TOTAL_BASES(Gb)'] > row['data_output'] else 'FAIL' for _, row in qc_merged.iterrows()]
+        qc_merged_df['FASTQ_TOTAL_READ'] = qc_merged_df['FASTQ_TOTAL_READ_R1'] + qc_merged_df['FASTQ_TOTAL_READ_R2']
+        return qc_merged_df
     
     #db table처럼 table 수정, call에서 qc_merged return 되는 filter_merged_qc_df 값 넣기
-    def revise_df(self, qc_merged: pd.DataFrame) -> pd.DataFrame:
+    def revise_df(self, qc_merged_df: pd.DataFrame) -> pd.DataFrame:
         #원래 connect_db랑 연결할 수 있는데 test에 올리니까..
         #revise_df(self, conn, qc_merged)해서 쓰면 될듯..?
         db_type = 'mariadb'
@@ -107,17 +109,18 @@ class OverallUpdate:
         mytable = Table('gc_qc_bi', meta)
         meta.create_all(engine)
         table_cols = [x.name for x in mytable.columns]
-        not_in_table_cols = [x for x in table_cols if x not in qc_merged.columns]
+        not_in_table_cols = [x for x in table_cols if x not in qc_merged_df.columns]
         # not_in_table_cols = [x for x in not_in_table_cols if x not in ['IDX', 'CREATE_DATE', 'LAST_UPDATE_DATE', 'CREATE_USER', 'LAST_UPDATE_USER']]
         for col in not_in_table_cols:
-            qc_merged[col] = None
-        qc_merged['LAST_UPDATE_DATE'] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        qc_merged = qc_merged[table_cols]
+            qc_merged_df[col] = None
+        qc_merged_df['LAST_UPDATE_DATE'] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        qc_upload_df = qc_merged_df[table_cols]
+        return qc_upload_df
     
     #gh2 업로드 시 이렇게 쓰면 될듯
     #def update_sql(self, conn, qc_merged: pd.DataFrame):
     #    qc_merged.to_sql(name='gc_qc_bi', con = conn, if_exists='replace', index=False)
-    def update_sql(self, qc_merged: pd.DataFrame):
+    def update_sql(self, qc_upload_df: pd.DataFrame):
         db_type = 'mariadb'
         id = 'root'
         pw =  'gw12341234'
@@ -129,37 +132,38 @@ class OverallUpdate:
         MetaData.reflect(meta)
         con = engine.connect()
         
-        qc_merged.to_sql(name='gc_qc_bi', con = con, if_exists='replace', index=False)
+        qc_upload_df.to_sql(name='gc_qc_bi', con = con, if_exists='append', index=False)
 
-
-def __call__(self, qc_path: Path):
-    self.logger.info("Start fastqc_overall update pipeline")
-    self.logger.info("Connect db and parsing the data")
-     #DB connection initialize
-    conn = self.connect_db()
-
-    # load QC df
-    qc_df = pd.read_csv(qc_path)
+    def __call__(self):
+        self.logger.info("Start fastqc_overall update pipeline")
+        self.logger.info("Connect db and parsing the data...")
         
-    # load tb_expr_seq_line from database
-    query = f'''
-        select sample_id, data_output from tb_expr_seq_line
-        where sample_id in ({",".join(qc_df['SampleID'].tolist())})
-        '''
-    tb_expr_seq_line_df = self.parse_db_to_df(conn, query)
+        #DB connection initialize
+        conn = self.connect_db()
+
+        # load QC df
+        qc_df = pd.read_csv(self.qc_df)
+        qc_df['SampleID'] = [f"'{x}'" for x in qc_df['SampleID']] 
+        
+        # load tb_expr_seq_line from database
+        query = f'''
+            select sample_id, data_output from tb_expr_seq_line
+            where sample_id in ({",".join(qc_df['SampleID'].tolist())})
+            '''
+        tb_expr_seq_line_df = self.parse_db_to_df(conn, query)
     
-    self.logger.info("Filtering Data with threshold...")
-    qc_merged = self.filter_merged_qc_df(qc_df, tb_expr_seq_line_df)
+        self.logger.info("Filtering Data with threshold...")
+        qc_merged_df = self.filter_merged_qc_df(qc_df, tb_expr_seq_line_df)
     
-    self.logger.info("Revise the table form...")
-    qc_merged = self.revise_df(qc_merged)
+        self.logger.info("Revise the table form...")
+        qc_upload_df = self.revise_df(qc_merged_df)
     
-    self.logger.info("Update test database...")
-    try:
-        self.update_sql(qc_merged)
-    except Exception as e:
-        self.logger.info("Error!")
-        self.logger.info(e)
+        self.logger.info("Update test database...")
+        try:
+            self.update_sql(qc_upload_df)
+        except Exception as e:
+            self.logger.info("Error in update_sql")
+            self.logger.info(e)
         
 if __name__ == '__main__':
     import argparse
