@@ -1,4 +1,5 @@
 
+from asyncio.windows_events import NULL
 import logging
 import numpy as np
 import pandas as pd
@@ -80,13 +81,34 @@ qc_merged.drop(columns='sample_id')
                 # LAST_UPDATE_DATE = None,
                 # CREATE_USER = '',
                 # LAST_UPDATE_USER = 'root'
-                )
-             
-             
-             
+             )
+
+table_cols = [x.name for x in mytable.columns]
+not_in_table_cols = [x for x in table_cols if x not in qc_merged.columns]
+for col in not_in_table_cols:
+        qc_merged[col] = None
+
+qc_merged = qc_merged[table_cols]
+qc_merged = qc_merged.reindex(columns=table_cols)
+qc_merged.to_sql()
+
+
+datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+
+
+
+
+d = list(mytable.columns)
+d[0].name
+
+
+
+
+
 for _, row in qc_merged.drop(columns='sample_id').iterrows():
         gc_qc_bidf = pd.DataFrame({
-                'SAMPLE_ID' :{row['Samp leID']},
+                'SAMPLE_ID' : [{row['SampleID']}],
                 'FASTQ_TOTAL_READ' : {row['FASTQ_TOTAL_READ_R1'] + row['FASTQ_TOTAL_READ_R2']},
                 'FASTQ_Q30' : None,
                 'FASTQ_OVERALL' : {row['FILTER']},
@@ -120,3 +142,9 @@ for _, row in qc_merged.drop(columns='sample_id').iterrows():
                 # CREATE_USER : '',
                 # LAST_UPDATE_USER : 'root'
         })
+        
+        
+sql_rows = []
+
+sql_rows = '({}, {}, {}, {}, {}, {}, {}, {}, {}, {}, \
+ {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {})'.format()
