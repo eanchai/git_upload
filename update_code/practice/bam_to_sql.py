@@ -96,7 +96,7 @@ class BamUpload(DBConfig):
         conn = engine.connect()
         return conn    
     
-    def revise_df(self, conn:sqlalchemy.engine, query: str, data_df: pd.DataFrame) -> pd.DataFrame:
+    def revise_df(self, data_df: pd.DataFrame) -> pd.DataFrame:
         bam_df = data_df.rename(columns={
                 'SampleID':'SAMPLE_ID',
                 'MEAN_TARGET_COVERAGE':'BAM_MEAN_DEPTH',
@@ -118,8 +118,6 @@ class BamUpload(DBConfig):
     
 
     def write_to_sql(self, conn: sqlalchemy.engine, bam_df: pd.DataFrame, url):
-        bam_df.to_sql(name='gc_qc_bi', con=conn, if_exists='replace',index=False)
-        
         engine = create_engine(url)
         meta = MetaData(bind=engine)
         MetaData.reflect(meta)
@@ -160,7 +158,9 @@ class BamUpload(DBConfig):
                 # CREATE_USER = '',
                 # LAST_UPDATE_USER = 'root'
              )
-    
+             
+             #bam_df.to_sql(name='gc_qc_bi', con=conn, if_exists='replace', index=False)
+             
     def __call__(self):
         self.logger.info("Start BAM QC upload pipeline")
         self.logger.info("Start fastqc_overall update pipeline")
