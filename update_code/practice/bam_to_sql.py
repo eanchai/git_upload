@@ -94,7 +94,7 @@ class BamUpload(DBConfig):
         url = f'{self.db_type}+pymysql://{self.id}:{self.pw}@{self.host}/{self.schema_name}'
         engine = create_engine(url)
         conn = engine.connect()
-        return conn    
+        return conn
     
     def revise_df(self, data_df: pd.DataFrame) -> pd.DataFrame:
         bam_df = data_df.rename(columns={
@@ -103,7 +103,7 @@ class BamUpload(DBConfig):
                 'PCT_USABLE_BASES_ON_TARGET':'BAM_ON_TARGET_RATE'
                 })
         
-        #공통 col X, 그냥 insert
+        #공통 col X, 그냥 insert, 이건 mysql 처리 방식
         # for _, row in bam_df.iterrows():
         #     query=f'''
         #     insert into gc_qc_bi(SAMPLE_ID, IDX, FASTQ_TOTAL_READ, FASTQ_GC_CONTENTS, FASTQ_Q30, FASTQ_OVERALL, 
@@ -117,14 +117,15 @@ class BamUpload(DBConfig):
         return bam_df
     
 
-    def write_to_sql(self, conn: sqlalchemy.engine, bam_df: pd.DataFrame, url):
-        engine = create_engine(url)
-        meta = MetaData(bind=engine)
-        MetaData.reflect(meta)
-        mytable = Table('gc_qc_bi', meta)
+    def write_to_sql(self, conn: sqlalchemy.engine, bam_df: pd.DataFrame):
+        # engine = create_engine(url)
+        # meta = MetaData(bind=engine)
+        # MetaData.reflect(meta)
+        # mytable = Table('gc_qc_bi', meta)
         
-        for _, row in bam_df.drop(columns='sample_id').iterrows():
-             query = mytable.update().values(SAMPLE_ID = {row['SampleID']},
+        #sqlalchemy로 처리할 생각 해야함
+        for _, row in bam_df.drop(columns='Sample_id').iterrows():
+             query = update().values(SAMPLE_ID = {row['Sample_ID']},
                 FASTQ_TOTAL_READ = None,
                 FASTQ_Q30 = None,
                 FASTQ_OVERALL = None,
@@ -159,6 +160,8 @@ class BamUpload(DBConfig):
                 # LAST_UPDATE_USER = 'root'
              )
              
+             return query
+             
              #bam_df.to_sql(name='gc_qc_bi', con=conn, if_exists='replace', index=False)
              
     def __call__(self):
@@ -177,7 +180,8 @@ class BamUpload(DBConfig):
         
         self.logger.info("QC data database upload start!")
         try:
-            self.write_to_sql(conn, bam_df)
+            query = self.write_to_sql(conn, bam_df)
+            bam_df.to_sql(name='gc_qc_bi', con=conn, if_exists='replace', index=False, query = query)
         except Exception as e:
             self.logger.info("Error!")
             self.logger.info(e)
