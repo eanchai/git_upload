@@ -103,7 +103,7 @@ class BamUpload(DBConfig):
                 'PCT_USABLE_BASES_ON_TARGET':'BAM_ON_TARGET_RATE'
                 })
         
-        #공통 col X, 그냥 insert
+        #공통 col X, 그냥 insert, 이건 mysql 처리 방식
         # for _, row in bam_df.iterrows():
         #     query=f'''
         #     insert into gc_qc_bi(SAMPLE_ID, IDX, FASTQ_TOTAL_READ, FASTQ_GC_CONTENTS, FASTQ_Q30, FASTQ_OVERALL, 
@@ -123,6 +123,7 @@ class BamUpload(DBConfig):
         # MetaData.reflect(meta)
         # mytable = Table('gc_qc_bi', meta)
         
+        #sqlalchemy로 처리할 생각 해야함
         for _, row in bam_df.drop(columns='Sample_id').iterrows():
              query = update().values(SAMPLE_ID = {row['Sample_ID']},
                 FASTQ_TOTAL_READ = None,
