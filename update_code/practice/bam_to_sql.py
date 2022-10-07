@@ -123,6 +123,14 @@ class BamUpload(DBConfig):
         # MetaData.reflect(meta)
         # mytable = Table('gc_qc_bi', meta)
         
+        # update_table = bam_df
+        # update_table.insert(0, 'SAMPLE_ID', sample_id)
+        # update_table.insert(1, 'FASTQ_TYPE', read_id)
+        # update_table = update_table.rename(columns={'Base':"BASE"})
+        # update_list = [row.to_dict() for _, row in update_table.iterrows()]
+        # result_proxy = conn.execute(query, update_list)
+        # result_proxy.close()
+        
         #sqlalchemy로 처리할 생각 해야함
         for _, row in bam_df.drop(columns='Sample_id').iterrows():
              query = update().values(SAMPLE_ID = {row['Sample_ID']},
