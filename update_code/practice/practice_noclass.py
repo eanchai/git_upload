@@ -83,6 +83,7 @@ qc_merged.drop(columns='sample_id')
                 # LAST_UPDATE_USER = 'root'
              )
 
+## 이거는 fastq_upload 할때 쓴 코드
 table_cols = [x.name for x in mytable.columns]
 not_in_table_cols = [x for x in table_cols if x not in qc_merged.columns]
 for col in not_in_table_cols:
@@ -144,7 +145,19 @@ for _, row in qc_merged.drop(columns='sample_id').iterrows():
         })
         
         
-sql_rows = []
-
-sql_rows = '({}, {}, {}, {}, {}, {}, {}, {}, {}, {}, \
- {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {})'.format()
+        
+#bam
+# engine = create_engine(url)
+        # meta = MetaData(bind=engine)
+        # MetaData.reflect(meta)
+        # mytable = Table('gc_qc_bi', meta)
+        
+        # update_table = bam_df
+        # update_table.insert(0, 'SAMPLE_ID', sample_id)
+        # update_table.insert(1, 'FASTQ_TYPE', read_id)
+        # update_table = update_table.rename(columns={'Base':"BASE"})
+        # update_list = [row.to_dict() for _, row in update_table.iterrows()]
+        # result_proxy = conn.execute(query, update_list)
+        # result_proxy.close()
+        
+        # 이걸로 짜는 법

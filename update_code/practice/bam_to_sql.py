@@ -103,17 +103,6 @@ class BamUpload(DBConfig):
                 'PCT_USABLE_BASES_ON_TARGET':'BAM_ON_TARGET_RATE'
                 })
         
-        #공통 col X, 그냥 insert, 이건 mysql 처리 방식
-        # for _, row in bam_df.iterrows():
-        #     query=f'''
-        #     insert into gc_qc_bi(SAMPLE_ID, IDX, FASTQ_TOTAL_READ, FASTQ_GC_CONTENTS, FASTQ_Q30, FASTQ_OVERALL, 
-        #     FASTQ_TOTAL_READ_R1, FASTQ_GC_CONTENTS_R1, FASTQ_OVERALL_R1, FASTQ_Q3_R1,
-        #     FASTQ_TOTAL_READ_R2, FASTQ_GC_CONTENTS_R2, FASTQ_OVERALL_R2, FASTQ_Q30_R2, BAM_MEAN_DEPTH, BAM_CAPTURE_EFFICIENCY,
-        #     BAM_ON_TARGET_RATE, BAM_DUP_RATE, BAM_PR_SCORE, BAM_UNIFORM, BAM_TUMOR_VOL, BAM_OVERALL_QUALITY, BAM_GENDER_ESTIMATED,
-        #     ANAL_PF_QC, ANAL_PF_COMM, PCT_TARGET_04X_MEAN, ALIGN_RATE, UNIQUE_READ, UNIQUE_MEAN)DEPTH, BAM_MEAN_INSERT_SIZE, COEF)
-        #     values(@bam_df[sample_id],)
-        #     '''
-        
         return bam_df
     
 
@@ -132,7 +121,7 @@ class BamUpload(DBConfig):
         # result_proxy.close()
         
         #sqlalchemy로 처리할 생각 해야함
-        for _, row in bam_df.drop(columns='Sample_id').iterrows():
+        for _, row in bam_df.drop(columns='sample_id').iterrows():
              query = update().values(SAMPLE_ID = {row['Sample_ID']},
                 FASTQ_TOTAL_READ = None,
                 FASTQ_Q30 = None,
@@ -167,10 +156,9 @@ class BamUpload(DBConfig):
                 # CREATE_USER = '',
                 # LAST_UPDATE_USER = 'root'
              )
-             
              return query
-             
-             #bam_df.to_sql(name='gc_qc_bi', con=conn, if_exists='replace', index=False)
+         
+         #bam_df.to_sql(name='gc_qc_bi', con=conn, if_exists='replace', index=False)
              
     def __call__(self):
         self.logger.info("Start BAM QC upload pipeline")
