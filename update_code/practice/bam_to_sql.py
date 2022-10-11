@@ -8,7 +8,7 @@
 import logging
 import numpy as np
 import pandas as pd
-import sqlalchemy as db
+import sqlalchemy
 import matplotlib as mat
 import matplotlib.pyplot as plt
 from time import time
@@ -68,6 +68,7 @@ class BamUpload(DBConfig):
             logger.addHandler(file_handler)
         return logger
 
+    #bam 파일에서 필요한 부분 추출 -> data_df로 저장
     def load_file(self) -> pd.DataFrame:
         # sample_id = self.bam_dir.name.split(".")[0]
         with open(self.recal_metric_fn) as f:
@@ -90,12 +91,19 @@ class BamUpload(DBConfig):
         ]
         return data_df
     
+    #db에 연결
     def connect_db(self) -> sqlalchemy.engine:
         url = f'{self.db_type}+pymysql://{self.id}:{self.pw}@{self.host}/{self.schema_name}'
         engine = create_engine(url)
         conn = engine.connect()
-        return conn
+        
+        meta = MetaData(bind=engine)
+        MetaData.reflect(meta)
+        metadata = sqlalchemy.MetaData()
+        table = sqlalchemy.Table('gc_bamqc', metadata, autoload=True, autoload_with=engine)
+        return conn, table
     
+    ##data_df에서 bam_df로 변환
     def revise_df(self, data_df: pd.DataFrame) -> pd.DataFrame:
         bam_df = data_df.rename(columns={
                 'SampleID':'SAMPLE_ID',
@@ -104,61 +112,19 @@ class BamUpload(DBConfig):
                 })
         
         return bam_df
-    
 
-    def write_to_sql(self, conn: sqlalchemy.engine, bam_df: pd.DataFrame):
-        # engine = create_engine(url)
-        # meta = MetaData(bind=engine)
-        # MetaData.reflect(meta)
-        # mytable = Table('gc_qc_bi', meta)
-        
-        # update_table = bam_df
+    #sql에 업로드 
+    def write_to_sql(self, table: sqlalchemy.Table, conn: sqlalchemy.engine, bam_df: pd.DataFrame):
+        update_table = bam_df
         # update_table.insert(0, 'SAMPLE_ID', sample_id)
         # update_table.insert(1, 'FASTQ_TYPE', read_id)
         # update_table = update_table.rename(columns={'Base':"BASE"})
-        # update_list = [row.to_dict() for _, row in update_table.iterrows()]
-        # result_proxy = conn.execute(query, update_list)
-        # result_proxy.close()
+        update_list = [row.to_dict() for _, row in update_table.iterrows()]
+        query = sqlalchemy.update(table).values(update_list)
+        result_proxy = conn.execute(query, update_list)
+        result_proxy.close()
         
-        #sqlalchemy로 처리할 생각 해야함
-        for _, row in bam_df.drop(columns='sample_id').iterrows():
-             query = update().values(SAMPLE_ID = {row['Sample_ID']},
-                FASTQ_TOTAL_READ = None,
-                FASTQ_Q30 = None,
-                FASTQ_OVERALL = None,
-                FASTQ_TOTAL_READ_R1 = None,
-                FASTQ_GC_CONTENTS_R1 = None ,
-                FASTQ_OVERALL_R1 = None,
-                FASTQ_Q30_R1 = None,
-                FASTQ_TOTAL_READ_R2 = None,
-                FASTQ_GC_CONTENTS_R2 = None,
-                FASTQ_OVERALL_R2 = None,
-                FASTQ_Q30_R2 = None,
-                BAM_MEAN_DEPTH = {row['MEAN_TARGET_COVERAGE']},
-                BAM_CAPTURE_EFFICIENCY = None,
-                BAM_ON_TARGET_RATE = {row['PCT_USABLE_BASES_ON_TARGET']},
-                BAM_DUP_RATE = None,
-                BAM_PR_SCORE = None,
-                BAM_UNIFORM = None,
-                BAM_TUMOR_VOL = None,
-                BAM_OVERALL_QUALITY = None,
-                BAM_GENDER_ESTIMATED = None,
-                ANAL_PF_QC = None,
-                ANAL_PF_COMM = None,
-                PCT_TARGET_04X_MEAN = None,
-                ALIGN_RATE = None,
-                UNIQUE_READ = None,
-                UNIQUE_MEAN_DEPTH = None,
-                BAM_MEAN_INSERT_SIZE = None,
-                COEF = None,
-                MEDIAN_EXON_COVERAGE = None
-                # LAST_UPDATE_DATE = None,
-                # CREATE_USER = '',
-                # LAST_UPDATE_USER = 'root'
-             )
-             return query
-         
-         #bam_df.to_sql(name='gc_qc_bi', con=conn, if_exists='replace', index=False)
+        #bam_df.to_sql(name='qc_bamqc', con=conn, if_exists='replace', index=False)
              
     def __call__(self):
         self.logger.info("Start BAM QC upload pipeline")
@@ -166,7 +132,7 @@ class BamUpload(DBConfig):
         self.logger.info("Connect db and parsing the data...")
         
         #DB connection initialize
-        conn = self.connect_db()
+        table, conn = self.connect_db()
         
         self.logger.info("Load bam QC file...")
         data_df = self.load_file()
@@ -176,8 +142,9 @@ class BamUpload(DBConfig):
         
         self.logger.info("QC data database upload start!")
         try:
-            query = self.write_to_sql(conn, bam_df)
-            bam_df.to_sql(name='gc_qc_bi', con=conn, if_exists='replace', index=False, query = query)
+            # query = self.write_to_sql(table, conn, bam_df)
+            # bam_df.to_sql(name='gc_qc_bi', con=conn, if_exists='replace', index=False, query = query)
+            self.write_to_sql(table, conn, bam_df)
         except Exception as e:
             self.logger.info("Error!")
             self.logger.info(e)
