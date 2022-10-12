@@ -98,6 +98,7 @@ class BamUpload(DBConfig):
                 'PCT_EXC_OFF_TARGET'
             ]
         ]
+        bam_df['CREATE_DATE'] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         return bam_df
     
     def write_to_sql(self, conn: sqlalchemy.engine, bam_df: pd.DataFrame):
