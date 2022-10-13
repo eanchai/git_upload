@@ -1,16 +1,13 @@
 """
-    date: 2022.10.12
+    date: 2022.10.12 ~
     object: BAM metric upload
         check BAM file & gc_bamqc upload
     author: 
 """
 
 import logging
-import numpy as np
 import pandas as pd
 import sqlalchemy
-import matplotlib as mat
-import matplotlib.pyplot as plt
 from time import time
 from pathlib import Path
 from pytz import timezone
@@ -82,22 +79,8 @@ class BamUpload(DBConfig):
         header_line = lines[6].replace("\n", '')
         metric_line = lines[7].replace("\n", '')
         file_series = pd.Series(data=metric_line.split("\t"), index=header_line.split("\t"))
-        file_series['Sample_ID'] = self.sample_id
-        data_df = pd.DataFrame(file_series).T
-        bam_df = data_df[
-            [
-                'Sample_ID',
-                'MEAN_TARGET_COVERAGE',
-                'PCT_USABLE_BASES_ON_TARGET',
-                'PCT_EXC_DUPE',
-                'PCT_PF_READS',
-                'PCT_EXC_OVERLAP',
-                'PCT_EXC_ADAPTER',
-                'PCT_EXC_MAPQ',
-                'PCT_EXC_BASEQ',
-                'PCT_EXC_OFF_TARGET'
-            ]
-        ]
+        bam_df = pd.DataFrame(file_series).T
+        bam_df.insert(0,'SAMPLE_ID', self.sample_id)
         bam_df['CREATE_DATE'] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         return bam_df
     
@@ -113,11 +96,11 @@ class BamUpload(DBConfig):
         conn = self.connect_db()
         
         self.logger.info("Load bam QC file and Revise...")
-        data_df = self.load_file()
+        bam_df = self.load_file()
         
         self.logger.info("Upload to database_gc_bamqc")
         try:
-            self.write_to_sql(conn, data_df)
+            self.write_to_sql(conn, bam_df)
         except Exception as e:
             self.logger.info("Error in upload sql")
             self.logger.info(e)
