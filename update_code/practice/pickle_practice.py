@@ -168,6 +168,23 @@ for sample_id in data.keys():
         #     result_proxy = conn.execute(query)
         result_proxy.close()
         
+#넣어주려는 key info값 받고 그거에 해당하는 table찾아서 table에 업로드하기
+
+def bsc_df(self, data: dict) -> dict:
+        info_name = 'bsc'
+        for sample_id in data.keys():
+            for read_id in data[sample_id].keys():
+                update_table = data[sample_id][read_id]['bsc']
+                update_table.insert(0, 'SAMPLE_ID', sample_id)
+                update_table.insert(1, 'IDX', 0)
+                update_table.insert(2, 'FASTQ_TYPE', read_id)
+                update_table.insert(8, 'CREATE_DATE', datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+                update_table = update_table.rename(columns={'Base':"BASE"})
+        return update_table
+    
+    def upload_to_sql(self, update_table: pd.DataFrame, conn: sqlalchemy.engine):
+        update_table.to_sql('gc_pbsc', con=conn, if_exists='append')
+        
 
 
 
