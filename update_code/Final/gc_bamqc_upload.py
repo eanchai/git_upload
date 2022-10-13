@@ -24,7 +24,7 @@ class DBConfig:
         self.schema_name='geninus'
 
 class BamUpload(DBConfig):
-    def __init__(self, data_dir: str, sample_id: str) -> None:
+    def __init__(self, data_dir: str, sample_id: str, fc_dir: str) -> None:
         '''
             Class initialize
         '''
@@ -72,6 +72,14 @@ class BamUpload(DBConfig):
         conn = engine.connect()
         return conn
     
+    # split sequence date and fc_id
+    def _split_fc_dir_to_date_and_id(self) -> str | str:
+        tokens = self.fc_dir.split("_")
+        seq_date = tokens[0]
+        fc_id = tokens[-1]
+        fc_id = fc_id[1:]
+        return seq_date, fc_id
+
     #bam파일에서 원하는 부분 추출해서 bam_df로 저장
     def load_file(self) -> pd.DataFrame:
         with open(self.recal_metric_fn) as f:
@@ -80,7 +88,15 @@ class BamUpload(DBConfig):
         metric_line = lines[7].replace("\n", '')
         file_series = pd.Series(data=metric_line.split("\t"), index=header_line.split("\t"))
         bam_df = pd.DataFrame(file_series).T
-        bam_df.insert(0,'SAMPLE_ID', self.sample_id)
+        return bam_df
+    
+    def parse_bam_df(self, bam_df: pd.DataFrame) -> pd.DataFrame:
+        # insert sample id
+        seq_date, fc_id = self._split_fc_dir_to_date_and_id()
+        bam_df.insert(0, 'SEQ_DATE', seq_date)
+        bam_df.insert(1, 'FC_ID', fc_id)
+        bam_df.insert(2,'SAMPLE_ID', self.sample_id)
+        bam_df['CREATE_USER'] = self.id
         bam_df['CREATE_DATE'] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         return bam_df
     
@@ -97,10 +113,11 @@ class BamUpload(DBConfig):
         
         self.logger.info("Load bam QC file and Revise...")
         bam_df = self.load_file()
+        parsed_bam_df = self.parse_bam_df(bam_df)
         
         self.logger.info("Upload to database_gc_bamqc")
         try:
-            self.write_to_sql(conn, bam_df)
+            self.write_to_sql(conn, parsed_bam_df)
         except Exception as e:
             self.logger.info("Error in upload sql")
             self.logger.info(e)
