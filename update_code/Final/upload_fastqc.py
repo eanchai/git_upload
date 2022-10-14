@@ -5,7 +5,8 @@ from datetime import datetime
 from sqlalchemy import create_engine
 
 class UploadFastQC:
-
+    
+    #dict가 pickle 파일
     def _split_fc_dir_to_date_and_id(self) -> str | str:
         tokens = self.fc_dir.split("_")
         seq_date = tokens[0]
@@ -29,6 +30,7 @@ class UploadFastQC:
                 target_df = self.parse_df(sample_id, read_type, target_df)
                 target_df.to_sql(name=table_name, con=conn, if_exists='append', index=False)
 
+    #csv로 나오는게 fastqc
     def parse_db_to_df(self, query: str) -> pd.DataFrame:
         db_type = 'mariadb'
         id = 'yckim'
@@ -88,26 +90,6 @@ class UploadFastQC:
         self.logger.info("Add flow cell ID on db...")
         qc_fastqc_upload_df = self.add_flowcell(qc_merged_df)
         self.upload_fastqc_table(qc_fastqc_upload_df)
-
- 
-
         pass
 
-
-import pickle as pkl
-
-data_path = "/Users/duaghk/build/rlo/git_upload/test/fastqc_result.pickle"
-
-with open(data_path, 'rb') as f:
-    data = pkl.load(f)
-
-data.keys()
-
-
-
-
-data['CD_21_12826_XN_WES']['R1'].keys()
-for k, v in data['CD_21_12826_XN_WES']['R1'].items():
-    print(k)
-    print(v) 
 
