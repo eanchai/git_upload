@@ -23,7 +23,7 @@ class UploadFastQC:
         return target_df
 
     def upload_fastqc_dict(self, qc_dict: dict) -> None:
-        target_key_dict = {'bsq':"gc_qbsq", 'bsc':"gc_qbsc", 'sge':"gc_qsge"}
+        target_key_dict = {'bsq':"gc_rsc_qbsq", 'bsc':"gc_rsc_qbsc", 'sge':"gc_rsc_qsge"}
         for sample_id, read_type in qc_dict.items():
             for key, table_name in target_key_dict.items():
                 target_df = qc_dict[sample_id][read_type][key]
@@ -63,7 +63,7 @@ class UploadFastQC:
         return qc_merged_df
 
     def upload_sql(self, conn: create_engine, qc_fastqc_upload_df: pd.DataFrame):
-        qc_fastqc_upload_df.to_sql(name="qc_fastqc", con=conn, if_exists='append', index = False)
+        qc_fastqc_upload_df.to_sql(name="gc_rsc_fastqc", con=conn, if_exists='append', index = False)
 
     def upload_fastqc_table(self, conn:create_engine, qc_fastqc_upload_df: pd.DataFrame) -> None:
         try:
