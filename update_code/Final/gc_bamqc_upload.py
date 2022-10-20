@@ -18,13 +18,13 @@ from sqlalchemy import create_engine, MetaData, Table, Column, Numeric, Integer,
 class DBConfig:
     def __init__(self):
         self.db_type='mariadb'
-        self.id='root'
-        self.pw='gw12341234'
-        self.host='db-qc.cg10utv5zpvf.ap-northeast-2.rds.amazonaws.com'
-        self.schema_name='geninus'
+        self.id='eckim'
+        self.pw='rladmsco12!'
+        self.host='geninus-maria-211117-dev.cobyqiuirug6.ap-northeast-2.rds.amazonaws.com'
+        self.schema_name='gh2'
 
 class BamUpload(DBConfig):
-    def __init__(self, data_dir: str, sample_id: str, fc_dir: str) -> None:
+    def __init__(self, data_dir: str, sample_id: str) -> None:
         '''
             Class initialize
         '''
@@ -73,12 +73,13 @@ class BamUpload(DBConfig):
         return conn
     
     # split sequence date and fc_id
-    def _split_fc_dir_to_date_and_id(self) -> str | str:
-        tokens = self.fc_dir.split("_")
-        seq_date = tokens[0]
-        fc_id = tokens[-1]
-        fc_id = fc_id[1:]
-        return seq_date, fc_id
+    #이거 해야하는데 현재 테스트 파일 올릴때는 이걸 지금 올릴 수가 없음
+    # def _split_fc_dir_to_date_and_id(self) -> str | str:
+    #     tokens = self.fc_dir.split("_")
+    #     seq_date = tokens[0]
+    #     fc_id = tokens[-1]
+    #     fc_id = fc_id[1:]
+    #     return seq_date, fc_id
 
     #bam파일에서 원하는 부분 추출해서 bam_df로 저장
     def load_file(self) -> pd.DataFrame:
@@ -92,7 +93,9 @@ class BamUpload(DBConfig):
     
     def parse_bam_df(self, bam_df: pd.DataFrame) -> pd.DataFrame:
         # insert sample id
-        seq_date, fc_id = self._split_fc_dir_to_date_and_id()
+        # seq_date, fc_id = self._split_fc_dir_to_date_and_id()
+        seq_date = "date"
+        fc_id = 'flow_cell_id'
         bam_df.insert(0, 'SEQ_DATE', seq_date)
         bam_df.insert(1, 'FC_ID', fc_id)
         bam_df.insert(2,'SAMPLE_ID', self.sample_id)
@@ -101,7 +104,7 @@ class BamUpload(DBConfig):
         return bam_df
     
     def write_to_sql(self, conn: sqlalchemy.engine, bam_df: pd.DataFrame):
-        bam_df.to_sql(name='gc_bamqc', con=conn, if_exists='append', index=False)
+        bam_df.to_sql(name='gc_rsc_bamqc', con=conn, if_exists='append', index=False)
     
     def __call__(self):
         self.logger.info("Start BAM QC upload pipeline")
