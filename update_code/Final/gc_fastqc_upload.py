@@ -27,10 +27,10 @@ from sqlalchemy import create_engine
 class DBConfig:
     def __init__(self):
         self.db_type = 'mariadb'
-        self.id = 'root'
-        self.pw =  'gw12341234'
-        self.host = 'db-qc.cg10utv5zpvf.ap-northeast-2.rds.amazonaws.com'
-        self.schema_name = 'geninus'
+        self.id = 'eckim'
+        self.pw =  'rladmsco12!'
+        self.host = 'geninus-maria-211117-dev.cobyqiuirug6.ap-northeast-2.rds.amazonaws.com'
+        self.schema_name = 'gh2'
         
 class FastQCUpload(DBConfig):
     def __init__(self, data_dir: str, type_len: str):
@@ -110,17 +110,22 @@ class FastQCUpload(DBConfig):
         qc_merged_df = qc_merged_df.rename(columns={'data_output':'DATA_OUTPUT'})
         qc_merged_df['FASTQ_OVERALL'] = ['PASS' if row['FASTQ_TOTAL_BASES(Gb)'] > row['data_output'] else 'FAIL' for _, row in qc_merged.iterrows()]
         qc_merged_df['FASTQ_TOTAL_READ'] = qc_merged_df['FASTQ_TOTAL_READ_R1'] + qc_merged_df['FASTQ_TOTAL_READ_R2']
+        qc_merged_df = qc_merged_df.rename(columns={'FASTQ_TOTAL_BASES(Gb)':'FASTQ_TOTAL_BASES'})
+        qc_merged_df['CREATE_USER'] = 'pipeline'
+        qc_merged_df['FASTQ_TYPE'] = 'null'
         qc_merged_df['CREATE_DATE'] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         return qc_merged_df
     
     def add_flowcell(self, data_dir: Path, qc_merged_df: pd.DataFrame) -> pd.DataFrame:
         #flow_cell = str(self.data_dir).split('/')[4].rsplit('_')[3]
+        seq_date = data_dir.parent.name.split("_")[0]
         flow_cell_id = data_dir.parent.name.split("_")[-1][1:]
-        qc_merged_df.insert(1,'FLOW_CELL_ID',flow_cell_id)
+        qc_merged_df.insert(0,'SEQ_DATE', seq_date)
+        qc_merged_df.insert(1,'FC_ID', flow_cell_id)
         return qc_merged_df
     
     def upload_sql(self, conn: sqlalchemy.engine, qc_fastqc_upload_df: pd.DataFrame):
-        qc_fastqc_upload_df.to_sql(name="qc_fastqc", con=conn, if_exists='append', index = False)
+        qc_fastqc_upload_df.to_sql(name="gc_rsc_fastqc", con=conn, if_exists='append', index = False)
     
     def __call__(self):
         self.logger.info("Start fastqc_overall update pipeline")
