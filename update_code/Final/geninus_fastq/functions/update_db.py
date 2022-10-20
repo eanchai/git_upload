@@ -2,8 +2,8 @@
 
 '''
 
-Date: 2021.11.11
-Authors: duaghk
+Date: 2022.10.20
+Authors: duaghk, rlo
 
 FASTQ information update.
 
