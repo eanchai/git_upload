@@ -55,35 +55,43 @@ class UpdateFastQC(DBConfig, ToolConfig, SequencingConfig):
             logger.addHandler(file_handler)
         return logger
     
-    #dict가 pickle 파일 -> 이게 fastqc_dict를 받아야함
-    def _split_fc_dir_to_date_and_id(self, fastqc_result_path: str) -> str :
-        tokens = fastqc_result_path.split("_")
-        seq_date = tokens[0]
-        fc_id = tokens[-1]
-        fc_id = fc_id[1:]
-        return seq_date, fc_id
-
-    def parse_df(self, sample_id: str, read_type: str, target_df: pd.DataFrame, fastqc_result_path: str) -> pd.DataFrame:
-        seq_date, fc_id = self._split_fc_dir_to_date_and_id(fastqc_result_path)        
-        target_df.insert(0, 'SEQ_DATE', seq_date)
-        target_df.insert(1, 'FC_ID', fc_id)
-        target_df.insert(2, 'SAMPLE_ID', sample_id)
-        target_df.insert(3, 'TYPE', read_type)
-        return target_df
-
-    def update_fastqc_dict(self, qc_dict: dict, fastqc_result_path: str) -> None:
-        target_key_dict = {'bsq':"gc_rsc_qbsq", 'bsc':"gc_rsc_qbsc", 'sge':"gc_rsc_qsge"}
-        for sample_id, read_type in qc_dict.items():
-            for key, table_name in target_key_dict.items():
-                target_df = qc_dict[sample_id][read_type][key]
-                target_df = self.parse_df(sample_id, read_type, target_df, fastqc_result_path)
-                target_df.to_sql(name=table_name, con=conn, if_exists='append', index=False)
-
     def connect_db(self) -> sqlalchemy.engine:
         url = f'{self.db_type}+pymysql://{self.id}:{self.pw}@{self.db_address}/{self.db_name}'
         engine = create_engine(url)
         conn = engine.connect()
         return conn
+    
+    #dict가 pickle 파일 -> 이게 fastqc_dict를 받아야함
+    def _split_fc_dir_to_date_and_id(self, fastqc_result_path: str) -> str :
+        tokens = fastqc_result_path.split("_")
+        seq_date = tokens[0]
+        fc_id = tokens[-1][1]
+        return seq_date, fc_id
+
+    def parse_df(self, sample_id: str, read_type: str, target_df: pd.DataFrame, fastqc_result_path: str) -> pd.DataFrame:
+        seq_date, fc_id = self._split_fc_dir_to_date_and_id(fastqc_result_path)        
+        target_df.insert(1, 'SEQ_DATE', seq_date)
+        target_df.insert(2, 'FC_ID', fc_id)
+        target_df.insert(3, 'SAMPLE_ID', sample_id)
+        target_df.insert(4, 'FASTQ_TYPE', read_type)
+        target_df.insert(5, 'IDX', 0)
+        return target_df
+
+    def update_fastqc_dict(self, conn: create_engine, qc_dict: dict, fastqc_result_path: str) -> None:
+        target_key_dict = {'bsq':"gc_rsc_qbsq", 'bsc':"gc_rsc_qbsc", 'sge':"gc_rsc_qsge"}
+        for sample_id, read_type in qc_dict.items():
+            for key, table_name in target_key_dict.items():
+                target_df = qc_dict[sample_id][read_type][key]
+                update_table = self.parse_df(sample_id, read_type, target_df, fastqc_result_path)
+                update_table['CREATE_DATE'] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                update_table['CREATE_USER'] = 'pipeline'
+                
+                update_table = update_table.rename(columns={'Base':"BASE"})
+                update_table = update_table.rename(columns={'10th Percentile':'TENTH_PERCENTILE'})
+                update_table = update_table.rename(columns={'90th Percentile':'NINETIETH_PERCENTILE'})
+                update_table.to_sql(name=table_name, con=conn, if_exists='append', index=False)
+
+
     
     #csv로 나오는게 fastqc -> 이게 product_table을 받아야함
     def parse_db_to_df(self, conn, query: str) -> pd.DataFrame:
@@ -103,9 +111,13 @@ class UpdateFastQC(DBConfig, ToolConfig, SequencingConfig):
         qc_merged = pd.merge(qc_df, tb_expr_seq_line_df, how='left', on='SampleID')
         qc_merged_df = qc_merged.rename(columns={'SampleID':'SAMPLE_ID'})
         qc_merged_df = qc_merged_df.rename(columns={'data_output':'DATA_OUTPUT'})
+        
         qc_merged_df['FASTQ_OVERALL'] = ['PASS' if row['FASTQ_TOTAL_BASES(Gb)'] > row['data_output'] else 'FAIL' for _, row in qc_merged.iterrows()]
         qc_merged_df['FASTQ_TOTAL_READ'] = qc_merged_df['FASTQ_TOTAL_READ_R1'] + qc_merged_df['FASTQ_TOTAL_READ_R2']
+        qc_merged_df['CREATE_USER'] = 'pipeline'
+        qc_merged_df['FASTQ_TYPE'] = 'null'
         qc_merged_df['CREATE_DATE'] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        qc_merged_df = qc_merged_df.rename(columns={'FASTQ_TOTAL_BASES(Gb)':'FASTQ_TOTAL_BASES'})
         return qc_merged_df
     
     def add_flowcell(self, qc_merged_df: pd.DataFrame, fastqc_result_path: str) -> pd.DataFrame:

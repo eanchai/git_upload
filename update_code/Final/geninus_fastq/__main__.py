@@ -19,7 +19,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 import subprocess as sp
 
-from .functions import ParseInfo, MakeSampleSheet, Bcl2fastqRunner, RangerRunner, FastQCRunner, ParseFastQC, QueueController, SendEmail, UpdateFastQC, UploadFastq, ToolConfig, SequencingConfig
+from .functions import ParseInfo, MakeSampleSheet, Bcl2fastqRunner, RangerRunner, FastQCRunner, ParseFastQC, QueueController, SendEmail, update_db, UploadFastq, ToolConfig, SequencingConfig
 
 
 class MakeFastq(ToolConfig, SequencingConfig):
@@ -219,8 +219,13 @@ class MakeFastq(ToolConfig, SequencingConfig):
             if samplesheet_prefix.is_dir():
                 qc_dict , qc_table = self.qcparser(fastqc_dir.joinpath(samplesheet_prefix))
                 fastqc_result_path = fastqc_dir.joinpath(f'fastqc_product_results_{samplesheet_prefix.name}.csv')
-                qc_table.to_csv(fastqc_result_path, header=True, index=False)
+                
+                # qc_table.to_csv(fastqc_result_path, header=True, index=False)
+                # Need to add Upload data.
+                self.updater(fastqc_result_path, qc_dict, qc_table)
+                
                 fastqc_result_path_list.append(fastqc_result_path)
+            
             else:
                 continue
         
@@ -232,12 +237,6 @@ class MakeFastq(ToolConfig, SequencingConfig):
         """
 
         self.mailer(headline, main_text, fastqc_result_path_list)
-        
-        
-        # # Need to add Upload data.
-        # self.updater(fastqc_result_path, qc_dict, qc_table)
-        
-        
         return fc_name
 
     def _initialize_module(self):
@@ -271,8 +270,8 @@ class MakeFastq(ToolConfig, SequencingConfig):
             self.logger.info("Fastq upload module initialized.")
             
             
-            # self.updater = UpdateFastQC(self.date)
-            # self.logger.info("Update FastQC to DataBase.")
+            self.updater = update_db.UpdateFastQC(self.date)
+            self.logger.info("Update FastQC to DataBase.")
             
             
              
