@@ -19,7 +19,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 import subprocess as sp
 
-from .functions import ParseInfo, MakeSampleSheet, Bcl2fastqRunner, RangerRunner, FastQCRunner, ParseFastQC, QueueController, SendEmail, update_db, UploadFastq, ToolConfig, SequencingConfig
+from .functions import ParseInfo, MakeSampleSheet, Bcl2fastqRunner, RangerRunner, FastQCRunner, ParseFastQC, QueueController, SendEmail, UpdateFastQC, UploadFastq, ToolConfig, SequencingConfig
 
 
 class MakeFastq(ToolConfig, SequencingConfig):
@@ -270,7 +270,7 @@ class MakeFastq(ToolConfig, SequencingConfig):
             self.logger.info("Fastq upload module initialized.")
             
             
-            self.updater = update_db.UpdateFastQC(self.date)
+            self.updater = UpdateFastQC(self.date)
             self.logger.info("Update FastQC to DataBase.")
             
             

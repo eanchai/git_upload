@@ -12,6 +12,7 @@ try:
     from .control_queue import QueueController
     from .send_mail import SendEmail
     from .upload_fastq import UploadFastq
+    from .update_db import UpdateFastQC
     from .configs import ToolConfig, SequencingConfig
 except Exception as e:
     raise SystemExit(e)
