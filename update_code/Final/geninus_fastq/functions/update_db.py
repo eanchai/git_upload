@@ -25,6 +25,15 @@ class UpdateFastQC(DBConfig, ToolConfig, SequencingConfig):
         DBConfig.__init__(self)
         ToolConfig.__init__(self)
         SequencingConfig.__init__(self)
+        connect_query = (
+            f'{self.db_type}+pymysql://'
+            f'{self.id}:'
+            f'{self.pw}@'
+            f'{self.db_address}/'
+            f'{self.db_name}'
+        )
+        self.engine = create_engine(connect_query)
+        self.conn = self.engine.connect()
         self.log_dir = self.log_dir.joinpath("UpdateQC")
         self.log_dir.mkdir(parents=True, exist_ok=True)
         self.logger = self.make_logger(f"UpdateQC_{date}")
@@ -55,11 +64,11 @@ class UpdateFastQC(DBConfig, ToolConfig, SequencingConfig):
             logger.addHandler(file_handler)
         return logger
     
-    def connect_db(self) -> sqlalchemy.engine:
-        url = f'{self.db_type}+pymysql://{self.id}:{self.pw}@{self.db_address}/{self.db_name}'
-        engine = create_engine(url)
-        conn = engine.connect()
-        return conn
+    # def connect_db(self) -> sqlalchemy.engine:
+    #     url = f'{self.db_type}+pymysql://{self.id}:{self.pw}@{self.db_address}/{self.db_name}'
+    #     engine = create_engine(url)
+    #     conn = engine.connect()
+    #     return conn
     
     #dict가 pickle 파일 -> 이게 fastqc_dict를 받아야함
     def _split_fc_dir_to_date_and_id(self, fastqc_result_path: str) -> str :
@@ -77,7 +86,7 @@ class UpdateFastQC(DBConfig, ToolConfig, SequencingConfig):
         target_df.insert(5, 'IDX', 0)
         return target_df
 
-    def update_fastqc_dict(self, conn: create_engine, qc_dict: dict, fastqc_result_path: str) -> None:
+    def update_fastqc_dict(self, qc_dict: dict, fastqc_result_path: str) -> None:
         target_key_dict = {'bsq':"gc_rsc_qbsq", 'bsc':"gc_rsc_qbsc", 'sge':"gc_rsc_qsge"}
         for sample_id, read_type in qc_dict.items():
             for key, table_name in target_key_dict.items():
@@ -89,21 +98,11 @@ class UpdateFastQC(DBConfig, ToolConfig, SequencingConfig):
                 update_table = update_table.rename(columns={'Base':"BASE"})
                 update_table = update_table.rename(columns={'10th Percentile':'TENTH_PERCENTILE'})
                 update_table = update_table.rename(columns={'90th Percentile':'NINETIETH_PERCENTILE'})
-                update_table.to_sql(name=table_name, con=conn, if_exists='append', index=False)
+                update_table.to_sql(name=table_name, con=self.conn, if_exists='append', index=False)
 
-
-    
     #csv로 나오는게 fastqc -> 이게 product_table을 받아야함
-    def parse_db_to_df(self, conn, query: str) -> pd.DataFrame:
-        # db_type = 'mariadb'
-        # id = 'yckim'
-        # pw =  'rladmsco12!'
-        # host = 'geninus-maria-211117.cobyqiuirug6.ap-northeast-2.rds.amazonaws.com'
-        # schema_name = 'gh2'
-        # url = f'{db_type}+pymysql://{id}:{pw}@{host}/{schema_name}'
-        # engine = create_engine(url)
-        # con = engine.connect()
-        tb_expr_seq_line_df = pd.read_sql(query, conn)
+    def parse_db_to_df(self, query: str) -> pd.DataFrame:
+        tb_expr_seq_line_df = pd.read_sql(query, self.conn)
         tb_expr_seq_line_df = tb_expr_seq_line_df.rename(columns={'sample_id':'SampleID'})
         return tb_expr_seq_line_df
     
@@ -126,12 +125,12 @@ class UpdateFastQC(DBConfig, ToolConfig, SequencingConfig):
         qc_merged_df.insert(1,'FC_ID', fc_id)
         return qc_merged_df
 
-    def update_sql(self, conn: create_engine, qc_fastqc_update_df: pd.DataFrame):
-        qc_fastqc_update_df.to_sql(name="gc_rsc_fastqc", con=conn, if_exists='append', index = False)
+    def update_sql(self, qc_fastqc_update_df: pd.DataFrame):
+        qc_fastqc_update_df.to_sql(name="gc_rsc_fastqc", con=self.conn, if_exists='append', index = False)
 
-    def update_fastqc_table(self, conn:create_engine, qc_fastqc_update_df: pd.DataFrame) -> None:
+    def update_fastqc_table(self, qc_fastqc_update_df: pd.DataFrame) -> None:
         try:
-            self.update_sql(conn, qc_fastqc_update_df)
+            self.update_sql(qc_fastqc_update_df)
         except Exception as e:
             self.logger.info("Error in update sql")                       
             self.logger.info(e)
