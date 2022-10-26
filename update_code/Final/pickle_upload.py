@@ -95,8 +95,8 @@ class PickleUpload(DBConfig):
                 update_table.insert(4, 'FASTQ_TYPE', read_id)
                 update_table['CREATE_DATE'] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                 update_table = update_table.rename(columns={'Base':"BASE"})
-                update_table = update_table.rename(columns={'10th_Percentile':'TENTH_PERCENTILE'})
-                update_table = update_table.rename(columns={'90th_Percentile':'NINETIETH_PERCENTILE'})
+                update_table = update_table.rename(columns={'10th Percentile':'TENTH_PERCENTILE'})
+                update_table = update_table.rename(columns={'90th Percentile':'NINETIETH_PERCENTILE'})
         return update_table
     
     def _replace_space(self, update_table: pd.DataFrame) -> pd.DataFrame :
